@@ -3,99 +3,136 @@ name: vibe-coding-debug
 description: |
   Systematic bug investigation and surgical fixing with investigation logging and lessons learned.
   Creates debug sessions, reproduces bugs, analyzes root cause, applies minimal fixes, verifies resolution, then resumes BUILD.
-  Use when: (1) Bug reports - user says "it's broken", "fix this bug", "error", "not working", "something's wrong", "this isn't working",
-  (2) Test failures - user says "tests failing", "test errors", "tests broken", "CI is red", "tests don't pass",
-  (3) Debug requests - user says "help me debug", "investigate this", "find the bug", "why is this happening?", "figure out what's wrong",
-  (4) Orchestrator delegates DEBUG phase based on workflow state,
-  (5) BUILD phase encounters blocking error - orchestrator temporarily interrupts BUILD to create debug session.
-  Creates numbered debug sessions (#1, #2, etc.) with full investigation logs. Applies surgical fixes (minimal changes).
-  Logs lessons learned in progress.txt to prevent repeat issues. Returns to BUILD phase after verification complete.
+  Use when: (1) Bug reports - user says "it's broken", "fix this bug", "error", "not working",
+  (2) Test failures - user says "tests failing", "CI is red",
+  (3) Debug requests - user says "help me debug", "investigate this", "find the bug",
+  (4) BUILD phase encounters blocking error - orchestrator temporarily interrupts BUILD.
+  Returns to BUILD phase after verification complete.
 ---
 
 # Vibe Coding DEBUG Phase
 
-Systematic bug fixing with investigation logging.
+Systematic bug investigation. Minimal fixes. Always return to BUILD.
 
-## Debug Protocol
+## Session Setup
 
-1. **Create Debug Session**
-   - Assign session ID
-   - Record issue description
-   - Save current BUILD state (to resume later)
+1. Assign session ID (increment from last in progress.txt)
+2. Record issue description
+3. Save current BUILD state as `return_to_step`
+4. Run `vibe-coding-recall` — search memory for this bug or similar symptoms before investigating
 
-2. **Investigate**
-   - Reproduce the bug
-   - Analyze root cause
-   - Log investigation steps
+Write to progress.txt:
+```
+PHASE: DEBUG
+STATUS: in_progress
+session_count: [N]
+current_session: [N]
+issue: [description]
+return_to_step: [BUILD Phase X, Step Y]
+started: [timestamp]
+```
 
-3. **Fix**
-   - Apply surgical fix (minimal changes)
-   - Follow protection rules
+---
 
-4. **Verify**
-   - Test the fix
-   - Check for regressions
-   - Confirm resolution
+## Investigation Router
 
-5. **Document**
-   - Log lesson learned
-   - Update progress.txt
-
-6. **Resume BUILD**
-   - Return to saved BUILD state
-   - Continue where left off
-
-## Investigation Workflow
-
-**Load:** `references/investigation.md`
+Classify the bug immediately:
 
 ```
-DEBUG SESSION #[X]
-Triggered from: [BUILD Phase X, Step Y]
-Issue: [description]
-Started: [timestamp]
+Vague description (no error message, no steps to reproduce)?
+  → READ: ## Vague Bug Handler
 
+Build/compile/type error?
+  → READ: ## Build Error Route
+
+Visual/UI bug?
+  → READ: ## UI Bug Route
+
+Runtime/logic bug (app runs but behaves wrong)?
+  → READ: ## Runtime Bug Investigation
+
+Bug in shared code (ui/ hooks/ utils/ layouts/)?
+  → READ: ## Shared Code Bug (run impact analysis first)
+```
+
+**Jump directly to the matched section. Do not read all bug handler sections before starting.**
+
+---
+
+## Vague Bug Handler
+
+Do not start investigating. Ask first:
+```
+To investigate effectively, I need more detail:
+1. What exactly happened? (expected vs actual behavior)
+2. Was there an error message? (paste it here)
+3. What steps lead to this?
+```
+Wait for answer. Then re-classify and continue.
+
+---
+
+## Build Error Route
+
+Pass full error output to `vibe-coding-build-fix`. Wait for fix.
+After fix applied: verify build passes. Return to BUILD.
+
+---
+
+## UI Bug Route
+
+Ask user to share a screenshot.
+Run `vibe-coding-ui-review` with the screenshot.
+Apply the reported design violations as fixes.
+Verify visually. Return to BUILD.
+
+---
+
+## Runtime Bug Investigation
+
+Use `vibe-coding-explore` (smart_search / smart_outline / smart_unfold) to navigate to the bug.
+Never read whole files during debug.
+
+```
 INVESTIGATION LOG:
-[timestamp] - Reproduced bug
-[timestamp] - Found error in [file]
+[timestamp] - Reproduced: [how]
+[timestamp] - Found in: [file:line]
 [timestamp] - Root cause: [explanation]
 
-FIX APPLIED:
-[description of fix]
+FIX:
+[minimal change — what was changed and why]
 
 VERIFICATION:
 ✓ Bug resolved
 ✓ Tests passing
 ✓ No regressions
-
-LESSON LEARNED:
-[what we learned for future]
-
-RESUME: Return to BUILD Phase X, Step Y
 ```
 
-## Reference Files
+---
 
-- `references/main.md` - Debug orchestration
-- `references/debug-startup.md` - Session initialization
-- `references/investigation.md` - Investigation protocol
-- `references/fix-protocol.md` - Fix guidelines
-- `references/closure.md` - Verification and closure
+## Shared Code Bug
 
-## Hand-off Back to BUILD
+Before touching anything:
+→ Run `vibe-coding-impact-analysis` to map blast radius.
+Review the impact report. Proceed with the safest change path.
+Then follow Runtime Bug Investigation steps.
 
-When bug fixed and verified:
+---
 
+## Closure
+
+Write to progress.txt:
 ```
-DEBUG SESSION #[X] - COMPLETE
+DEBUG SESSION #[N] - COMPLETE
 completed: [timestamp]
 bug_fixed: true
-tests_passing: true
+lesson_learned: [what to avoid in future]
 
 ---
 PHASE: BUILD
----
-Resume from: [saved state]
+STATUS: in_progress
+Resume from: [return_to_step value]
 ```
 
-Activate vibe-coding-build skill and exit.
+Run `vibe-coding-code-review` on the fix to verify no new issues introduced.
+Activate `vibe-coding-build`. Exit.

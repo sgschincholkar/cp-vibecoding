@@ -1,6 +1,15 @@
 # Development tools (not needed for plugin distribution)
 skill-creator/
 
+# Local planning and research files — not for distribution
+autoresearch/
+28Mar-plan.md
+CODEOWNERS
+migration/
+MIGRATION.md
+.claude/
+skills/references/
+
 # User project files that will be created during usage
 progress.txt
 tasks/
